@@ -57,7 +57,10 @@ class MeterDlmsZivLink(
 
         if (dlms.authentication.ordinal > Authentication.LOW.ordinal) {
             reply.clear()
-            for (p in dlms.applicationAssociationRequest()) readDataBlock(p, reply)
+         val assocRequests: Array<ByteArray> = dlms.applicationAssociationRequest()
+for (p: ByteArray in assocRequests) {
+    readDataBlock(p, reply)
+}
             dlms.parseApplicationAssociationResponse(reply.data)
         }
 
