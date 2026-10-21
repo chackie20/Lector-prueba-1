@@ -6,10 +6,10 @@ import gurux.dlms.GXDLMSClient
 import gurux.dlms.GXReplyData
 import gurux.dlms.enums.Authentication
 import gurux.dlms.enums.InterfaceType
-import gurux.dlms.objects.GXDLMSObjectCollection
+import gurux.dlms.objects.GXDLMSData
 
 class MeterDlmsZivLink(
-    private val port: UsbSerialPort,
+    private val port: UsbConnector,
     private val cfg: MeterConfig,
     private val onStatus: (String) -> Unit = {}
 ) {
@@ -65,7 +65,7 @@ class MeterDlmsZivLink(
                     values += ObisValue(obis, valStr)
                 }
             } catch (e: Exception) {
-                // Continuar con el siguiente código OBIS si falla alguno
+                // Continuar si falla un código OBIS concreto
             }
         }
 
@@ -78,13 +78,17 @@ class MeterDlmsZivLink(
 
     private fun readObisString(obis: String): String? {
         val reply = GXReplyData()
-        val readReq = dlms.read(obis, 2)[0]
-        readDataBlock(readReq, reply)
-        return dlms.getValue(reply.data)?.toString()
+        val item = GXDLMSData(obis)
+        val readReq = dlms.read(item, 2)
+        if (readReq.isNotEmpty()) {
+            readDataBlock(readReq[0], reply)
+            return dlms.updateValue(item, 2, reply.value)?.toString()
+        }
+        return null
     }
 
     private fun readDataBlock(request: ByteArray, reply: GXReplyData) {
-        port.write(request, 1000)
+        port.write(request)
         val buffer = ByteArray(1024)
         val len = port.read(buffer, 2000)
         if (len > 0) {
