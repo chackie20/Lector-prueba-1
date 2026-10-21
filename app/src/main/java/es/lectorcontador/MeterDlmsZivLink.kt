@@ -1,3 +1,4 @@
+```kotlin
 package es.lectorcontador
 
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +20,12 @@ class MeterDlmsZivLink(
     suspend fun readOut(): MeterReading = withContext(Dispatchers.IO) {
         enterModeE()
 
-        val auth = if (cfg.dlmsPassword.isBlank()) Authentication.NONE else Authentication.LOW
+        val auth = if (cfg.dlmsPassword.isBlank()) {
+            Authentication.NONE
+        } else {
+            Authentication.LOW
+        }
+
         dlms = GXDLMSClient(
             true,
             cfg.dlmsClientAddress,
@@ -30,83 +36,53 @@ class MeterDlmsZivLink(
         )
 
         onStatus("ZIV: estableciendo sesión DLMS...")
+
         val reply = GXReplyData()
         val snrm = dlms.snrmRequest()
+
         if (snrm != null && snrm.isNotEmpty()) {
             readDataBlock(snrm, reply)
             dlms.parseUAResponse(reply.data)
         }
 
         reply.clear()
-        val aarq: Array<ByteArray> = dlms.aarqRequest()
+
+        val aarq = dlms.aarqRequest()
         for (requestBlock in aarq) {
             readDataBlock(requestBlock, reply)
         }
+
         dlms.parseAareResponse(reply.data)
 
         if (dlms.authentication.ordinal > Authentication.LOW.ordinal) {
             reply.clear()
-            val assocRequests: Array<ByteArray> = dlms.applicationAssociationRequest()
+
+            val assocRequests = dlms.applicationAssociationRequest()
             for (requestBlock in assocRequests) {
                 readDataBlock(requestBlock, reply)
             }
+
             dlms.parseApplicationAssociationResponse(reply.data)
         }
 
         onStatus("ZIV: leyendo energía y valores instantáneos...")
+
         val values = mutableListOf<ObisValue>()
         val requested = linkedSetOf<String>()
-        requested += "1.18.0"
-        for (i in 1..PERIODS) requested += "1.18.$i"
-        requested += "1.28.0"
-        for (i in 1..PERIODS) requested += "1.28.$i"
+
+        requested.add("1.18.0")
+        for (i in 1..PERIODS) {
+            requested.add("1.18.$i")
+        }
+
+        requested.add("1.28.0")
+        for (i in 1..PERIODS) {
+            requested.add("1.28.$i")
+        }
 
         for (obis in requested) {
             try {
-                val valStr = readObisString(obis)
-                if (valStr != null) {
-                    values += ObisValue(code = obis, value = valStr, unit = "")
-                }
-            } catch (e: Exception) {
-                // Se omiten lecturas no soportadas
-            }
-        }
+                val valueString = readObisString(obis)
 
-        val rawSummary = values.joinToString("\n") { "${it.code}: ${it.value}" }
-
-        MeterReading(
-            timestamp = System.currentTimeMillis(),
-            identification = "ZIV 5CTB",
-            raw = rawSummary,
-            values = values
-        )
-    }
-
-    private fun readObisString(obis: String): String? {
-        val reply = GXReplyData()
-        val item = GXDLMSData(obis)
-        val readReq = dlms.read(item, 2)
-        if (readReq.isNotEmpty()) {
-            readDataBlock(readReq[0], reply)
-            return dlms.updateValue(item, 2, reply.value)?.toString()
-        }
-        return null
-    }
-
-    private fun readDataBlock(request: ByteArray, reply: GXReplyData) {
-        port.write(request, 1000)
-        val buffer = ByteArray(1024)
-        val len = port.read(buffer, 2000)
-        if (len > 0) {
-            reply.data.set(buffer, 0, len)
-        }
-    }
-
-    private fun enterModeE() {
-        onStatus("ZIV: saludo inicial modo E...")
-    }
-
-    companion object {
-        private const val PERIODS = 6
-    }
-}
+                if (valueString != null) {
+                    values
