@@ -159,12 +159,14 @@ for (p: ByteArray in assocRequests) {
             val n = port.read(buf, 250)
             if (n > 0) {
                 rx += buf.copyOf(n)
-               val index = rx.indexOf(0x7E.toByte())
-                if (first >= 0) {
-                    val second = rx.indexOf(0x7E.toByte(), first + 1)
-                    if (second > first) {
-                        val out = rx.copyOfRange(first, second + 1)
-                        rx = rx.copyOfRange(second, rx.size)
+  // Acceso directo por índice [0] para evitar el error 'Unresolved reference first'
+// e indexOf con 1 solo parámetro
+val startByte: Byte = 0x7E.toByte()
+val index = rx.indexOf(startByte)
+if (index >= 0 && rx.size > index) {
+    val firstElement = rx[0]
+    // Tu lógica de procesado usando rx[0] o rx[index]
+}
                         return out
                     }
                 }
