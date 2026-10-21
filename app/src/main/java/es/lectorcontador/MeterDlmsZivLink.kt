@@ -45,7 +45,7 @@ class MeterDlmsZivLink(
             reply.clear()
             val assocRequests = dlms.applicationAssociationRequest()
             for (p in assocRequests) {
-                readDataBlock(p, reply.data)
+                readDataBlock(p, reply)
             }
             dlms.parseApplicationAssociationResponse(reply.data)
         }
@@ -62,10 +62,10 @@ class MeterDlmsZivLink(
             try {
                 val valStr = readObisString(obis)
                 if (valStr != null) {
-                    values += ObisValue(obis, valStr)
+                    values += ObisValue(code = obis, value = valStr, unit = "")
                 }
             } catch (e: Exception) {
-                // Se omiten lecturas OBIS que el contador no soporte
+                // Se omiten lecturas OBIS que el contador no responda
             }
         }
 
@@ -73,10 +73,8 @@ class MeterDlmsZivLink(
 
         MeterReading(
             timestamp = System.currentTimeMillis(),
-            protocol = "DLMS/COSEM (ZIV 5CTB)",
             identification = "ZIV 5CTB",
             raw = rawSummary,
-            rawText = rawSummary,
             values = values
         )
     }
