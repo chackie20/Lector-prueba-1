@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import gurux.dlms.GXDLMSClient
 import gurux.dlms.GXReplyData
+import gurux.dlms.GXByteBuffer
 import gurux.dlms.enums.Authentication
 import gurux.dlms.enums.InterfaceType
 import gurux.dlms.objects.GXDLMSData
@@ -43,7 +44,7 @@ class MeterDlmsZivLink(
 
         if (dlms.authentication.ordinal > Authentication.LOW.ordinal) {
             reply.clear()
-            val assocRequests = dlms.applicationAssociationRequest()
+            val assocRequests: Array<ByteArray> = dlms.applicationAssociationRequest()
             for (p in assocRequests) {
                 readDataBlock(p, reply)
             }
@@ -65,7 +66,7 @@ class MeterDlmsZivLink(
                     values += ObisValue(code = obis, value = valStr, unit = "")
                 }
             } catch (e: Exception) {
-                // Se omiten lecturas OBIS que el contador no responda
+                // Se omiten códigos OBIS no soportados por el contador
             }
         }
 
