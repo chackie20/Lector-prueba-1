@@ -7,14 +7,14 @@ import gurux.dlms.GXReplyData
 import gurux.dlms.enums.Authentication
 import gurux.dlms.enums.InterfaceType
 import gurux.dlms.objects.GXDLMSData
+import com.hoho.android.usbserial.driver.UsbSerialPort
 
 class MeterDlmsZivLink(
-    private val port: UsbConnector,
+    private val port: UsbSerialPort,
     private val cfg: MeterConfig,
     private val onStatus: (String) -> Unit = {}
 ) {
     private lateinit var dlms: GXDLMSClient
-    private var rx = ByteArray(0)
 
     suspend fun readOut(): MeterReading = withContext(Dispatchers.IO) {
         enterModeE()
@@ -65,13 +65,18 @@ class MeterDlmsZivLink(
                     values += ObisValue(obis, valStr)
                 }
             } catch (e: Exception) {
-                // Continuar si falla un código OBIS concreto
+                // Se omiten lecturas OBIS que el contador no soporte
             }
         }
 
+        val rawSummary = values.joinToString("\n") { "${it.code}: ${it.value}" }
+
         MeterReading(
+            timestamp = System.currentTimeMillis(),
             protocol = "DLMS/COSEM (ZIV 5CTB)",
-            rawText = values.joinToString("\n") { "${it.code}: ${it.value}" },
+            identification = "ZIV 5CTB",
+            raw = rawSummary,
+            rawText = rawSummary,
             values = values
         )
     }
@@ -88,7 +93,7 @@ class MeterDlmsZivLink(
     }
 
     private fun readDataBlock(request: ByteArray, reply: GXReplyData) {
-        port.write(request)
+        port.write(request, 1000)
         val buffer = ByteArray(1024)
         val len = port.read(buffer, 2000)
         if (len > 0) {
@@ -98,11 +103,6 @@ class MeterDlmsZivLink(
 
     private fun enterModeE() {
         onStatus("ZIV: saludo inicial modo E...")
-        val startByte: Byte = 0x7E.toByte()
-        val index = rx.indexOf(startByte)
-        if (index >= 0 && rx.size > index) {
-            val firstElement = rx[index]
-        }
     }
 
     companion object {
