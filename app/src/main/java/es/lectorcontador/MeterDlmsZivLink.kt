@@ -1,4 +1,3 @@
-```kotlin
 package es.lectorcontador
 
 import kotlinx.coroutines.Dispatchers
@@ -85,4 +84,69 @@ class MeterDlmsZivLink(
                 val valueString = readObisString(obis)
 
                 if (valueString != null) {
-                    values
+                    values.add(
+                        ObisValue(
+                            code = obis,
+                            value = valueString,
+                            unit = ""
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                onStatus("ZIV: no se pudo leer $obis")
+            }
+        }
+
+        val rawSummary = values.joinToString("\n") {
+            "${it.code}: ${it.value}"
+        }
+
+        MeterReading(
+            timestamp = System.currentTimeMillis(),
+            identification = "ZIV 5CTB",
+            raw = rawSummary,
+            values = values
+        )
+    }
+
+    private fun readObisString(obis: String): String? {
+        val reply = GXReplyData()
+        val item = GXDLMSData(obis)
+        val readRequests = dlms.read(item, 2)
+
+        for (request in readRequests) {
+            reply.clear()
+            readDataBlock(request, reply)
+        }
+
+        val value: Any? = dlms.updateValue(item, 2, reply.value)
+        return value?.toString()
+    }
+
+    private fun readDataBlock(
+        request: ByteArray,
+        reply: GXReplyData
+    ) {
+        port.write(request, 1000)
+
+        val buffer = ByteArray(1024)
+        val len = port.read(buffer, 2000)
+
+        if (len > 0) {
+            reply.data.set(buffer, 0, len)
+        } else {
+            throw IllegalStateException(
+                "El contador ZIV no ha respondido a la petición DLMS"
+            )
+        }
+    }
+
+    private fun enterModeE() {
+        onStatus("ZIV: saludo inicial modo E...")
+    }
+
+    companion object {
+        private const val PERIODS = 6
+    }
+}
+```
