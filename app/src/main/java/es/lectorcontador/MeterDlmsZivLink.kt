@@ -57,7 +57,10 @@ class MeterDlmsZivLink(
 
         if (dlms.authentication.ordinal > Authentication.LOW.ordinal) {
             reply.clear()
-         val assocRequests: Array<ByteArray> = dlms.applicationAssociationRequest()
+         val assocRequests = dlms.applicationAssociationRequest()
+for (p in assocRequests) {
+    readDataBlock(p, reply.data)
+}
 for (p: ByteArray in assocRequests) {
     readDataBlock(p, reply)
 }
@@ -156,7 +159,7 @@ for (p: ByteArray in assocRequests) {
             val n = port.read(buf, 250)
             if (n > 0) {
                 rx += buf.copyOf(n)
-                val first = rx.indexOf(0x7E.toByte())
+               val index = rx.indexOf(0x7E.toByte())
                 if (first >= 0) {
                     val second = rx.indexOf(0x7E.toByte(), first + 1)
                     if (second > first) {
