@@ -1,3 +1,4 @@
+```kotlin
 package es.lectorcontador
 
 import kotlinx.coroutines.Dispatchers
@@ -30,7 +31,7 @@ class MeterDlmsZivLink(
             cfg.dlmsClientAddress,
             cfg.dlmsServerAddress,
             auth,
-            cfg.dlmsPassword.ifBlank { null },
+            cfg.dlmsPassword,
             InterfaceType.HDLC_WITH_MODE_E
         )
 
@@ -47,20 +48,17 @@ class MeterDlmsZivLink(
         reply.clear()
 
         val aarq = dlms.aarqRequest()
-        for (requestBlock in aarq) {
-            readDataBlock(requestBlock, reply)
+        for (request in aarq) {
+            readDataBlock(request, reply)
         }
-
         dlms.parseAareResponse(reply.data)
 
-        if (dlms.authentication.ordinal > Authentication.LOW.ordinal) {
+        if (auth != Authentication.NONE && auth != Authentication.LOW) {
             reply.clear()
+            val associationRequest: ByteArray =
+                dlms.applicationAssociationRequest()
 
-            val assocRequests = dlms.applicationAssociationRequest()
-            for (requestBlock in assocRequests) {
-                readDataBlock(requestBlock, reply)
-            }
-
+            readDataBlock(associationRequest, reply)
             dlms.parseApplicationAssociationResponse(reply.data)
         }
 
@@ -82,7 +80,6 @@ class MeterDlmsZivLink(
         for (obis in requested) {
             try {
                 val valueString = readObisString(obis)
-
                 if (valueString != null) {
                     values.add(
                         ObisValue(
@@ -112,9 +109,9 @@ class MeterDlmsZivLink(
     private fun readObisString(obis: String): String? {
         val reply = GXReplyData()
         val item = GXDLMSData(obis)
-        val readRequests = dlms.read(item, 2)
+        val requests: Array<ByteArray> = dlms.read(item, 2)
 
-        for (request in readRequests) {
+        for (request in requests) {
             reply.clear()
             readDataBlock(request, reply)
         }
@@ -132,13 +129,13 @@ class MeterDlmsZivLink(
         val buffer = ByteArray(1024)
         val len = port.read(buffer, 2000)
 
-        if (len > 0) {
-            reply.data.set(buffer, 0, len)
-        } else {
+        if (len <= 0) {
             throw IllegalStateException(
                 "El contador ZIV no ha respondido a la petición DLMS"
             )
         }
+
+        reply.data.set(buffer, 0, len)
     }
 
     private fun enterModeE() {
