@@ -18,14 +18,13 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: gradle
 
-    - name: Configurar Gradle 8.9
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.9'
+    - name: Dar permisos de ejecucion a gradlew
+      run: chmod +x gradlew
 
     - name: Compilar APK Debug
-      run: gradle assembleDebug
+      run: ./gradlew assembleDebug
 
     - name: Subir APK
       uses: actions/upload-artifact@v4
