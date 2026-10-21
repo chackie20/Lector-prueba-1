@@ -1,4 +1,3 @@
-```kotlin
 package es.lectorcontador
 
 import kotlinx.coroutines.Dispatchers
